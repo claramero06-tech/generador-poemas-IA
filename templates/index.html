@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Poético IA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="chat-container">
+    <h1>✨ Chat de Poemas IA ✨</h1>
+    
+    <!-- Contador de prueba gratuita -->
+    <div id="tiempoRestante" style="text-align: center; padding: 8px; background: #ffe6f0; border-radius: 8px; margin-bottom: 10px; color: #d63384; font-weight: bold;">
+      ⏱️ Prueba gratuita: <span id="contador">60:00</span> restantes
+    </div>
+
+    <div id="chat-box" aria-live="polite"></div>
+
+    <div class="input-container">
+      <textarea id="mensaje" placeholder="Escribe tu petición (ej: poema corto de amor)" rows="2" autofocus></textarea>
+      <button id="enviarBtn" type="button">Enviar</button>
+    </div>
+
+    <!-- Botón para abrir modal de suscripción -->
+    <button id="abrirSuscripcionBtn" type="button" style="margin-top: 10px; background: #ff69b4; width: 100%;">
+      💎 Suscribirse - $25 USD/mes
+    </button>
+  </div>
+
+  <!-- Modal de Tiempo Expirado -->
+  <div id="modalTiempoExpirado" class="modal">
+    <div class="modal-content">
+      <h2 style="color: #d63384; text-align: center; margin-bottom: 15px;">
+        ⏰ Tiempo de Prueba Terminado
+      </h2>
+      
+      <p style="text-align: center; font-size: 16px; color: #666; margin-bottom: 20px;">
+        Tu hora de prueba gratuita ha finalizado. Para seguir disfrutando de nuestros poemas con IA, suscríbete ahora.
+      </p>
+
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 2.5em; color: #d63384; font-weight: bold;">
+          $25 USD/mes
+        </div>
+        <p style="color: #666; margin-top: 10px;">
+          Suscripción automática mensual
+        </p>
+      </div>
+
+      <div style="background: #ffe6f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li style="padding: 8px 0; color: #333;">✓ Poemas ilimitados con IA</li>
+          <li style="padding: 8px 0; color: #333;">✓ Sin anuncios</li>
+          <li style="padding: 8px 0; color: #333;">✓ Acceso prioritario</li>
+          <li style="padding: 8px 0; color: #333;">✓ Nuevos estilos poéticos</li>
+          <li style="padding: 8px 0; color: #333;">✓ Cancela cuando quieras</li>
+        </ul>
+      </div>
+
+      <div id="paypal-button-expired"></div>
+    </div>
+  </div>
+
+  <!-- Modal de Suscripción Normal -->
+  <div id="modalSuscripcion" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      
+      <h2 style="color: #d63384; text-align: center; margin-bottom: 15px;">
+        💎 Suscripción Premium
+      </h2>
+      
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 2.5em; color: #d63384; font-weight: bold;">
+          $25 USD/mes
+        </div>
+        <p style="color: #666; margin-top: 10px;">
+          Suscripción automática mensual
+        </p>
+      </div>
+
+      <div style="background: #ffe6f0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          <li style="padding: 8px 0; color: #333;">✓ Poemas ilimitados con IA</li>
+          <li style="padding: 8px 0; color: #333;">✓ Sin anuncios</li>
+          <li style="padding: 8px 0; color: #333;">✓ Acceso prioritario</li>
+          <li style="padding: 8px 0; color: #333;">✓ Nuevos estilos poéticos</li>
+          <li style="padding: 8px 0; color: #333;">✓ Cancela cuando quieras</li>
+        </ul>
+      </div>
+
+      <div id="paypal-button-container"></div>
+    </div>
+  </div>
+
+  <!-- SDK de PayPal con vault para suscripciones -->
+  <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&vault=true&intent=subscription&currency=USD"></script>
+  
+  <script>
+    // ⚠️ IMPORTANTE: Reemplaza con tu PLAN_ID real de PayPal
+    const PLAN_ID = 'P-6CE8518214058545HNDQFAXA';
+
+    // Función para crear botones de PayPal
+    function crearBotonPayPal(containerId) {
+      paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'blue',
+          shape: 'pill',
+          label: 'subscribe',
+          height: 50
+        },
+        createSubscription: function(data, actions) {
+          return actions.subscription.create({
+            'plan_id': PLAN_ID
+          });
+        },
+        onApprove: function(data, actions) {
+          fetch("/validar_pago", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subscriptionID: data.subscriptionID })
+          })
+          .then(res => res.json())
+          .then(respuesta => {
+            if (respuesta.status === "ACTIVE" || respuesta.status === "APPROVED") {
+              // Marcar suscripción como activa
+              localStorage.setItem('suscripcionActiva', 'true');
+              alert("✅ ¡Suscripción activada exitosamente!\nID: " + data.subscriptionID);
+              window.location.href = "/pago_exitoso";
+            } else {
+              alert("⚠️ Estado de suscripción: " + respuesta.status);
+            }
+          })
+          .catch(error => {
+            console.error("Error:", error);
+            alert("⚠️ Error al validar la suscripción");
+          });
+        },
+        onCancel: function(data) {
+          document.getElementById('modalSuscripcion').style.display = 'none';
+          document.getElementById('modalTiempoExpirado').style.display = 'none';
+        },
+        onError: function(err) {
+          console.error("Error de PayPal:", err);
+          alert("❌ Hubo un error procesando el pago. Intenta nuevamente.");
+        }
+      }).render(containerId);
+    }
+
+    // Modal de suscripción normal
+    const modal = document.getElementById('modalSuscripcion');
+    const btnAbrir = document.getElementById('abrirSuscripcionBtn');
+    const btnCerrar = document.getElementsByClassName('close')[0];
+
+    btnAbrir.onclick = function() {
+      modal.style.display = 'block';
+    }
+
+    btnCerrar.onclick = function() {
+      modal.style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    // Inicializar botones de PayPal cuando cargue la página
+    window.addEventListener('load', function() {
+      // Crear botones de PayPal
+      crearBotonPayPal('#paypal-button-container');
+      crearBotonPayPal('#paypal-button-expired');
+    });
+  </script>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
