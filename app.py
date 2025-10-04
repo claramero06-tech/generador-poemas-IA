@@ -4,7 +4,6 @@ import requests
 import base64
 import os
 from dotenv import load_dotenv
-from waitress import serve
 
 # Cargar variables de entorno desde .env
 load_dotenv()
@@ -333,6 +332,5 @@ def pago_cancelado():
     </html>
     """
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    serve(app, host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
